@@ -1,6 +1,6 @@
 const { GoogleGenAI } = require("@google/genai");
 const { z } = require("zod");
-const puppeteer = require('puppeteer');
+const puppeteer = require("puppeteer");
 
 const ai = new GoogleGenAI({
   apiKey: process.env.GOOGLE_GENAI_API_KEY,
@@ -177,17 +177,25 @@ tasks:string[]
 }
 
 async function generatePdfFromHtml(htmlContent) {
-  const browser = await puppeteer.launch();
+  const browser = await puppeteer.launch({
+    headless: true,
+    args: [
+      "--no-sandbox",
+      "--disable-setuid-sandbox",
+      "--disable-dev-shm-usage",
+    ],
+  });
   const page = await browser.newPage();
-  await page.setContent(htmlContent, {waitUntil: "networkidle0"});
+  await page.setContent(htmlContent, { waitUntil: "networkidle0" });
 
   const pdfBuffer = await page.pdf({
-    format:"A4", margin: {
+    format: "A4",
+    margin: {
       top: "20mm",
       bottom: "20mm",
       left: "10mm",
-      right: "10mm"
-    }
+      right: "10mm",
+    },
   });
 
   await browser.close();
@@ -195,10 +203,13 @@ async function generatePdfFromHtml(htmlContent) {
   return pdfBuffer;
 }
 
-
-async function generateResumePdf({resume, selfDescription, jobDescription}) {
+async function generateResumePdf({ resume, selfDescription, jobDescription }) {
   const resumePdfSchema = z.object({
-    html: z.string().describe("The HTML content of the resume which can be converted to PDF using any library like puppeteer")
+    html: z
+      .string()
+      .describe(
+        "The HTML content of the resume which can be converted to PDF using any library like puppeteer",
+      ),
   });
 
   const prompt = `Generate a resume PDF for the candidate with the following details:
@@ -275,13 +286,13 @@ html:string
     model: "gemini-3-flash-preview",
     contents: prompt,
     config: {
-      responseFormat: { 
+      responseFormat: {
         text: {
           mimeType: "application/json",
-          schema: z.toJSONSchema(resumePdfSchema)
-        }
-      }
-    }
+          schema: z.toJSONSchema(resumePdfSchema),
+        },
+      },
+    },
   });
 
   const jsonContent = JSON.parse(response.text);
@@ -293,4 +304,4 @@ html:string
   return pdfBuffer;
 }
 
-module.exports = {generateInterviewReport, generateResumePdf};
+module.exports = { generateInterviewReport, generateResumePdf };
